@@ -1,7 +1,10 @@
 use crate::{gdt, print, println};
+use crate::vga_buffer::WRITER;
+use crate::commands::handle_command;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin;
+use spin::Mutex;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -22,6 +25,13 @@ impl InterruptIndex {
     fn as_usize(self) -> usize {
         usize::from(self.as_u8())
     }
+}
+
+pub const INPUT_BUFFER_SIZE: usize = 256; // Maximum command length
+
+lazy_static! {
+    static ref INPUT_BUFFER: Mutex<[u8; INPUT_BUFFER_SIZE]> = Mutex::new([0; INPUT_BUFFER_SIZE]);
+    static ref INPUT_BUFFER_POSITION: Mutex<usize> = Mutex::new(0);
 }
 
 pub static PICS: spin::Mutex<ChainedPics> =
@@ -79,12 +89,48 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     let mut port = Port::new(0x60);
 
     let scancode: u8 = unsafe { port.read() };
+    let mut final_command = [0; INPUT_BUFFER_SIZE]; // Define final_command at the top level
+
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
-
-            // Print the character
             match key {
-                DecodedKey::Unicode(character) => print!("{}", character),
+                DecodedKey::Unicode(character) => {
+                    if character == '\n' {
+                        // Enter key pressed
+                        println!(""); // Move to a new line
+                    
+                        // Get the command from the buffer
+                        let mut buffer_lock = INPUT_BUFFER.lock();
+                        let position = *INPUT_BUFFER_POSITION.lock();
+                        let command = &buffer_lock[..position]; // Slice up to the filled position
+                    
+                        // Handle the command
+                        handle_command(command);
+                    
+                        // Clear the buffer and reset the position
+                        *buffer_lock = [0; INPUT_BUFFER_SIZE];
+                        *INPUT_BUFFER_POSITION.lock() = 0;
+                    
+                        // Print the prompt for the next command
+                        print!("> ");
+                    } else if character == '\x08' {
+                        // Backspace key pressed
+                        let mut writer = WRITER.lock();
+                        writer.remove_previous_symbol();
+                        let mut position = INPUT_BUFFER_POSITION.lock();
+                        if *position > 0 {
+                            *position -= 1;
+                        }
+                    } else {
+                        print!("{}", character);
+                        let mut buffer = INPUT_BUFFER.lock();
+                        let mut position = INPUT_BUFFER_POSITION.lock();
+                        if *position < INPUT_BUFFER_SIZE {
+                            buffer[*position] = character as u8;
+                            *position += 1;
+                        }
+                    }
+                },
                 DecodedKey::RawKey(key) => print!("{:?}", key),
             }
         }

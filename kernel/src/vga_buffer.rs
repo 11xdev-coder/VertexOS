@@ -26,6 +26,7 @@ pub enum Color {
     White = 15,
 }
 
+const PROMPT_LENGTH: usize = 2; // "> " symbol at start is 2 symbols
 const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
 
@@ -84,6 +85,7 @@ pub fn _print(args: fmt::Arguments) {
     WRITER.lock().write_fmt(args).unwrap();
 }
 
+#[allow(dead_code)]
 impl Writer {
     /// Writes an ASCII byte to the buffer.
     ///
@@ -154,6 +156,46 @@ impl Writer {
 
     pub fn set_column(&mut self, column: usize) {
         self.column_position = column;
+    }
+
+    pub fn get_column(&self) -> usize {
+        self.column_position
+    }
+
+    pub fn remove_previous_symbol(&mut self) {
+        if self.column_position > PROMPT_LENGTH {
+            self.column_position -= 1; // Move back one position
+            self.write_byte(b' '); // Overwrite the character with a space
+            self.column_position -= 1; // Move back again to overwrite the same position next time
+        } else if self.column_position == PROMPT_LENGTH {
+            // Check if the last two characters are the prompt
+            let row = BUFFER_HEIGHT - 1; // Assuming current row is always the last one
+            let prev_char = self.buffer.chars[row][self.column_position - 1].read();
+            let prev_prev_char = self.buffer.chars[row][self.column_position - 2].read();
+            
+            if !(prev_char.ascii_character == b' ' && prev_prev_char.ascii_character == b'>') {
+                // If the last two characters are not the prompt, remove the last symbol
+                self.column_position -= 1; // Move back one position
+                self.write_byte(b' '); // Overwrite the character with a space
+                self.column_position -= 1; // Move back again to overwrite the same position next time
+            }
+        } else if self.column_position <= 1 {
+            // If we are at the start of a line (after a newline), move the text down
+            self.move_text_down();
+            self.column_position = BUFFER_WIDTH; // Set cursor to the end of the previous line
+        }
+
+        self.update_cursor();
+    }           
+
+    /// Moves all text down by one line, creating space at the top row.
+    fn move_text_down(&mut self) {
+        for row in (1..BUFFER_HEIGHT).rev() {
+            for col in 0..BUFFER_WIDTH {
+                let character = self.buffer.chars[row - 1][col].read();
+                self.buffer.chars[row][col].write(character);
+            }
+        }
     }
 
     fn update_cursor(&self) {

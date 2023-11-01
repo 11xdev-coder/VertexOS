@@ -4,12 +4,15 @@
 #![feature(abi_x86_interrupt)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#[allow(unused_imports)]
 
 use core::panic::PanicInfo;
 
 pub mod gdt;
 pub mod interrupts;
 pub mod vga_buffer;
+pub mod commands;
+pub mod sound;
 
 pub fn init() {
     gdt::init();

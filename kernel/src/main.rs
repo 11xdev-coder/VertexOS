@@ -7,7 +7,7 @@
 mod vga_buffer;
 
 use core::panic::PanicInfo;
-// use kernel::vga_buffer::WRITER;
+use kernel::vga_buffer::WRITER;
 
 
 // b"string" means to convert the string into bytes
@@ -22,15 +22,14 @@ pub extern "C" fn _start() -> ! {
 
     #[cfg(test)] // only if we ran "cargo test"
     test_main();    
+    
+    // Sync writer's position
+    {        
+        let mut writer = WRITER.lock();
+        writer.set_column(2); // after > symbol
+    }    
 
-    // Update the writer's position
-    // {
-        
-    //     let mut writer = WRITER.lock();
-    //     writer.set_position(1, 3);
-    // }    
-
-    kernel::init_lib();
+    kernel::init_lib(); // start getting input
 
     loop {
 
