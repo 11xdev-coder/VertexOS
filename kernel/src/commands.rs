@@ -1,10 +1,4 @@
-#![no_std]
-
-use core::str;
-use crate::{gdt, print, println};
-use crate::vga_buffer::WRITER;
-use crate::sound::play_sound;
-use crate::sound::stop_sound;
+use crate::println;
 
 pub fn handle_command(command_bytes: &[u8]) {
     // Convert the byte slice to a string
