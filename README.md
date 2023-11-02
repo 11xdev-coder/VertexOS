@@ -4,5 +4,5 @@
 - [x] Basic Keyboard Input System
 - [x] Terminal Commands 
 - [ ] Memory Managment
-= [ ] Multitasking
+- [ ] Multitasking
 - [ ] Proper Testing (test terminal command)
