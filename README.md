@@ -4,8 +4,8 @@
 - [x] Basic Keyboard Input System
 - [x] Terminal Commands 
 - [x] Memory Managment
-- [ ] Multitasking (Night's part)
-- [ ] Improve Commands System (make each command a different .rs file, then load them) (Night's part)
+- [ ] Multitasking
+- [ ] Improve Commands System (make each command a different .rs file, then load them)
 - [x] Proper Testing (test terminal command)
 
 
