@@ -3,7 +3,7 @@
 - [x] VGA Buffer
 - [x] Basic Keyboard Input System
 - [x] Terminal Commands 
-- [ ] Memory Managment
+- [x] Memory Managment
 - [ ] Multitasking (Night's part)
 - [ ] Improve Commands System (make each command a different .rs file, then load them) (Night's part)
 - [ ] Proper Testing (test terminal command)
