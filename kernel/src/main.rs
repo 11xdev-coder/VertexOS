@@ -6,16 +6,23 @@
 
 mod vga_buffer;
 
+extern crate alloc;
 use core::panic::PanicInfo;
+use bootloader::{BootInfo, entry_point};
 use kernel::vga_buffer::WRITER;
+use alloc::boxed::Box;
 
 
 // b"string" means to convert the string into bytes
 // static means that string will "live" during all the program
 // static HELLO: &[u8] = b"GOODBYE HELL";
 
-#[no_mangle] // disable mangling so rust compiler names this method as "_start"
-pub extern "C" fn _start() -> ! {
+entry_point!(kernel_main); 
+fn kernel_main(boot_info: &'static BootInfo) -> ! {
+    use kernel::allocator;
+    use kernel::memory::{self, BootInfoFrameAllocator};
+    use x86_64::{structures::paging::Page, VirtAddr};
+    
     println!("Basic Kernel Implementation");
     println!("VertexDOS Version 0.1.0");
     
@@ -25,14 +32,35 @@ pub extern "C" fn _start() -> ! {
         writer.set_column(2); // after > symbol
     }   
 
-    kernel::init_lib(); // start getting input
+    kernel::init(); // start getting input
+
+    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let mut mapper = unsafe { memory::init(phys_mem_offset) };
+    let mut frame_allocator = unsafe {
+        BootInfoFrameAllocator::init(&boot_info.memory_map)
+    };
+
+    // new
+    allocator::init_heap(&mut mapper, &mut frame_allocator)
+        .expect("heap initialization failed");
+
+    let x = Box::new(41);
+    // map an unused page
+    let page = Page::containing_address(VirtAddr::new(0));
+    memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
+
+    // write the string `New!` to the screen through the new mapping
+    let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
+    unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e)};
+
+    let x = Box::new(41);
 
     #[cfg(test)] // only if we ran "cargo test"
     test_main();
 
     println!("Checking state... [ok]");
     print!("> ");
-    
+
     kernel::hlt_loop();
 }
 
@@ -54,7 +82,7 @@ fn panic(info: &PanicInfo) -> ! {
 
 /// TESTS! ------------------------------------------------------------------------------------------------------
 // simple test  1
-#[test_case]
+
 fn trivial_assertion() {
     assert_eq!(1, 1);
 }
