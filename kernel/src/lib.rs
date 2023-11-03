@@ -16,6 +16,9 @@ pub mod vga_buffer;
 pub mod commands;
 pub mod sound;
 pub mod memory;
+pub mod test_registry;
+
+// lib.rs mostly consists of implementing tests using cargo test, since I implemened test_registry.rs, this lib.rs is used only for initializing GDT and Interrupts
 
 pub fn init() {
     gdt::init();

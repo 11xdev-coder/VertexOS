@@ -1,4 +1,4 @@
-use crate::println;
+use crate::{println, test_registry};
 
 pub fn handle_command(command_bytes: &[u8]) {
     // Convert the byte slice to a string
@@ -14,13 +14,12 @@ pub fn handle_command(command_bytes: &[u8]) {
                     // Print everything after the first space
                     println!("{}", &args[1..]);
                 }
+                "test" => {
+                    handle_test_command(&args[1..]);
+                }
                 "fart" => {
                     // Attempt to play a test sound and print the result
-                    if print_fart() {
-                        println!("");
-                    } else {
-                        println!("Fart [failed]");
-                    }
+                    print_fart();
                 }
                 _ => {
                     // Handle unknown commands
@@ -30,12 +29,11 @@ pub fn handle_command(command_bytes: &[u8]) {
         } else {
             // Handle the case where there's only one word
             match trimmed_command {
+                "test" => {
+                    println!("Usage: test <test_file_name>");
+                }
                 "fart" => {
-                    if print_fart() {
-                        println!("");
-                    } else {
-                        println!("noob");
-                    }
+                    print_fart();
                 }
                 _ => {
                     println!("Unknown command: {}", trimmed_command);
@@ -47,7 +45,7 @@ pub fn handle_command(command_bytes: &[u8]) {
     }
 }
 
-fn print_fart() -> bool {
+fn print_fart() {
     println!(r#"$$$$$$$$\  $$$$$$\  $$$$$$$\  $$$$$$$$\ "#);
     println!(r#"$$  _____|$$  __$$\ $$  __$$\ \__$$  __|"#);
     println!(r#"$$ |      $$ /  $$ |$$ |  $$ |   $$ |   "#);
@@ -56,5 +54,8 @@ fn print_fart() -> bool {
     println!(r#"$$ |      $$ |  $$ |$$ |  $$ |   $$ |   "#);
     println!(r#"$$ |      $$ |  $$ |$$ |  $$ |   $$ |   "#);
     println!(r#"\__|      \__|  \__|\__|  \__|   \__|   "#);
-    true
+}
+
+fn handle_test_command(test_file: &str) {
+    test_registry::run_test(test_file);
 }
