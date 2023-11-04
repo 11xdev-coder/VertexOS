@@ -13,6 +13,7 @@ use kernel::vga_buffer::WRITER;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use kernel::{allocator::HEAP_SIZE, test_registry};
+use kernel::task::{Task, keyboard, executor::Executor};
 
 
 // b"string" means to convert the string into bytes
@@ -27,6 +28,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     
     println!("Basic Kernel Implementation");
     println!("VertexDOS Version 0.1.0");
+    
     
     // Sync writer's position
     {        
@@ -45,8 +47,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // new
     allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("heap initialization failed");
-
-    let x = Box::new(41);
     // map an unused page
     let page = Page::containing_address(VirtAddr::new(0));
     memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
@@ -60,10 +60,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)] // only if we ran "cargo test"
     test_main();
     
-
-    println!("Checking state... [ok]");
-    print!("> ");
-
     // registering all tests...
     test_registry::register_test("equal_test", trivial_assertion);
     test_registry::register_test("fail_test", fail_test);
@@ -73,6 +69,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     test_registry::register_test("many_boxes", many_boxes);
     test_registry::register_test("simple_println", println_simple);
     test_registry::register_test("many_println", println_many);
+
+    println!("Checking state... [ok]");
+    print!("> ");
+
+    let mut executor = Executor::new();
+    executor.spawn(Task::new(keyboard::print_keypress()));
+    executor.run();
 
     kernel::hlt_loop();
 }
@@ -143,4 +146,14 @@ fn println_many() {
     for _ in 0..200 {
         println!("test_println_many output");
     }
+}
+
+
+async fn async_number() -> u32 {
+    42
+}
+
+async fn example_task() {
+    let number = async_number().await;
+    println!("async test: {number}");
 }

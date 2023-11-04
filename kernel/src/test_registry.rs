@@ -1,5 +1,4 @@
 use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
 use spin::Mutex;
 use lazy_static::lazy_static;
 

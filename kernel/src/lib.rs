@@ -17,6 +17,7 @@ pub mod commands;
 pub mod sound;
 pub mod memory;
 pub mod test_registry;
+pub mod task;
 
 // lib.rs mostly consists of implementing tests using cargo test, since I implemened test_registry.rs, this lib.rs is used only for initializing GDT and Interrupts
 

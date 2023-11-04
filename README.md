@@ -4,7 +4,8 @@
 - [x] Basic Keyboard Input System
 - [x] Terminal Commands 
 - [x] Memory Managment
-- [ ] Multitasking
+- [x] Multitasking
+- [ ] More commands!!! <---
 - [ ] Improve Commands System (make each command a different .rs file, then load them)
 - [x] Proper Testing (test terminal command)
 
