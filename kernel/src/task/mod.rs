@@ -5,6 +5,12 @@ pub mod simple_executor;
 pub mod keyboard;
 pub mod executor;
 
+// a little about multitasking:
+// Multitasking - ability to manage multiple tasks and manage memory among them
+// Preemptive multitasking - CPU makes decisions - how long will any process(or app) use memory
+// this gives a more effective usage in system resources
+// Cooperative multitasking - Tasks manage switching between processes
+
 pub struct Task {
     id: TaskId,
     future: Pin<Box<dyn Future<Output = ()>>>,

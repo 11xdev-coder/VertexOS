@@ -1,4 +1,5 @@
-use crate::{print, println, commands::handle_command, vga_buffer::WRITER};
+use crate::{print, println, commands::{handle_command, BSOD_ACTIVE, self}, vga_buffer::WRITER};
+use core::sync::atomic::{Ordering, AtomicBool};
 use spin::Mutex;
 use conquer_once::spin::OnceCell;
 use core::{
@@ -79,6 +80,10 @@ pub async fn print_keypress() {
     let mut keyboard = Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore);
 
     while let Some(scancode) = scancodes.next().await {
+        if(commands::BSOD_ACTIVE.load(Ordering::SeqCst)) {
+            continue;
+        }
+
         if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
             if let Some(key) = keyboard.process_keyevent(key_event) {
                 match key {

@@ -149,11 +149,11 @@ fn println_many() {
 }
 
 
-async fn async_number() -> u32 {
-    42
-}
+// async fn async_number() -> u32 {
+//     42
+// }
 
-async fn example_task() {
-    let number = async_number().await;
-    println!("async test: {number}");
-}
+// async fn async_test() {
+//     let number = async_number().await;
+//     println!("async test: {number}");
+// }

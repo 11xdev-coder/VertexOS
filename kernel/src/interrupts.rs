@@ -10,8 +10,6 @@ use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, Pag
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
-pub const INPUT_BUFFER_SIZE: usize = 256; // Maximum command length
-
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)] // each variant is represented like u8
 pub enum InterruptIndex {
@@ -27,11 +25,6 @@ impl InterruptIndex {
     fn as_usize(self) -> usize {
         usize::from(self.as_u8())
     }
-}
-
-lazy_static! {
-    static ref INPUT_BUFFER: Mutex<[u8; INPUT_BUFFER_SIZE]> = Mutex::new([0; INPUT_BUFFER_SIZE]);
-    static ref INPUT_BUFFER_POSITION: Mutex<usize> = Mutex::new(0);
 }
 
 pub static PICS: spin::Mutex<ChainedPics> =

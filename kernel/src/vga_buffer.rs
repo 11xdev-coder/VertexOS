@@ -135,6 +135,31 @@ impl Writer {
         }
     }
 
+    // Writes a byte at a specific position without altering the cursor
+    pub fn write_byte_at(&mut self, byte: u8, column: usize, row: usize) {
+        if column < BUFFER_WIDTH && row < BUFFER_HEIGHT {
+            let color_code = self.color_code;
+            self.buffer.chars[row][column].write(ScreenChar {
+                ascii_character: byte,
+                color_code,
+            });
+        }
+    }
+
+    // Writes a string at a specific position without altering the cursor
+    pub fn write_string_at(&mut self, s: &str, column: usize, mut row: usize) {
+        for (i, byte) in s.bytes().enumerate() {
+            match byte {
+                // printable ASCII byte or newline
+                0x20..=0x7e => self.write_byte_at(byte, column + i, row),
+                // newline
+                b'\n' => row += 1,
+                // not part of printable ASCII range
+                _ => self.write_byte_at(0xfe, column + i, row),
+            }
+        }
+    }
+
     /// Shifts all lines one line up and clears the last row.
     fn new_line(&mut self) {
         for row in 1..BUFFER_HEIGHT {
@@ -224,6 +249,16 @@ impl Writer {
             data_port.write(position as u8);
         }
     }   
+
+    /// Sets the color code for the Writer.
+    fn set_color(&mut self, color_code: ColorCode) {
+        self.color_code = color_code;
+    }
+
+    pub fn return_to_default_color(&mut self) {
+        let mut writer = WRITER.lock();
+        writer.set_color(ColorCode::new(Color::White, Color::Black));
+    }
     
 }
 
@@ -234,3 +269,40 @@ impl fmt::Write for Writer {
         Ok(())
     }
 }
+
+pub fn set_screen_color(background_color: Color) {
+    let mut writer = WRITER.lock();
+    for row in 0..BUFFER_HEIGHT {
+        for col in 0..BUFFER_WIDTH {
+            let color_code = ColorCode::new(Color::White, background_color);
+            writer.buffer.chars[row][col].write(ScreenChar {
+                ascii_character: b' ',
+                color_code,
+            });
+        }
+    }
+    writer.set_color(ColorCode::new(Color::White, background_color));
+    writer.column_position = 0;
+    writer.update_cursor();
+}
+
+pub fn print_bsod_message() {
+    let mut writer = WRITER.lock();
+
+    // Clear the screen first
+    for row in 0..BUFFER_HEIGHT {
+        writer.clear_row(row);
+    }
+
+    // Calculate the position to center the "System error" message
+    let message = "System error";
+    let row = BUFFER_HEIGHT / 3; // Slightly more to the top
+    let column = (BUFFER_WIDTH - message.len()) / 2; // Centered
+
+    // Ensure the message is within the bounds of the screen
+    if column < BUFFER_WIDTH && row < BUFFER_HEIGHT {
+        // Write the message at the calculated position
+        writer.write_string_at(message, column, row);
+    }
+}
+

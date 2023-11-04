@@ -1,4 +1,8 @@
-use crate::{println, test_registry};
+use crate::{println, test_registry, vga_buffer};
+use x86_64::instructions::interrupts::{self, enable_and_hlt};
+use core::sync::atomic::{Ordering, AtomicBool};
+
+pub static BSOD_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 pub fn handle_command(command_bytes: &[u8]) {
     // Convert the byte slice to a string
@@ -17,8 +21,10 @@ pub fn handle_command(command_bytes: &[u8]) {
                 "test" => {
                     handle_test_command(&args[1..]);
                 }
+                "bsod" => {
+                    println!("{cmd} does not accept any arguments");
+                }
                 "fart" => {
-                    // Attempt to play a test sound and print the result
                     print_fart();
                 }
                 _ => {
@@ -31,6 +37,9 @@ pub fn handle_command(command_bytes: &[u8]) {
             match trimmed_command {
                 "test" => {
                     println!("Usage: test <test_file_name>");
+                }
+                "bsod" => { // suggestion by toxxxik
+                    handle_bsod();
                 }
                 "fart" => {
                     print_fart();
@@ -58,4 +67,18 @@ fn print_fart() {
 
 fn handle_test_command(test_file: &str) {
     test_registry::run_test(test_file);
+}
+
+fn handle_bsod() {
+    
+    interrupts::disable(); // disable input
+    vga_buffer::set_screen_color(vga_buffer::Color::Blue);
+    vga_buffer::print_bsod_message();
+
+    {
+        let mut writer = vga_buffer::WRITER.lock();
+        writer.return_to_default_color();
+    }  
+
+    BSOD_ACTIVE.store(true, Ordering::SeqCst);
 }
