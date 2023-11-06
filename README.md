@@ -7,7 +7,8 @@
 - [x] Multitasking
 - [ ] More commands!!! <---
     - [x] BSOD 
-- [ ] Improve Commands System (make each command a different .rs file, then load them)
+    - [ ] assert_eq <---
+- [x] Improve Commands System (make each command a different .rs file, then register them)
 - [x] Proper Testing (test terminal command)
 
 

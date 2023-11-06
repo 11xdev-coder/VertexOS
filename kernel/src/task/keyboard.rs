@@ -1,5 +1,5 @@
-use crate::{print, println, commands::{handle_command, BSOD_ACTIVE, self}, vga_buffer::WRITER};
-use core::sync::atomic::{Ordering, AtomicBool};
+use crate::{print, println, command_registry::run_command, vga_buffer::WRITER, commands::bsod::BSOD_ACTIVE};
+use core::sync::atomic::Ordering;
 use spin::Mutex;
 use conquer_once::spin::OnceCell;
 use core::{
@@ -80,7 +80,7 @@ pub async fn print_keypress() {
     let mut keyboard = Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore);
 
     while let Some(scancode) = scancodes.next().await {
-        if(commands::BSOD_ACTIVE.load(Ordering::SeqCst)) {
+        if  BSOD_ACTIVE.load(Ordering::SeqCst) {
             continue;
         }
 
@@ -95,10 +95,10 @@ pub async fn print_keypress() {
                             // Get the command from the buffer
                             let mut buffer_lock = INPUT_BUFFER.lock();
                             let position = *INPUT_BUFFER_POSITION.lock();
-                            let command = &buffer_lock[..position]; // Slice up to the filled position
+                            let command = core::str::from_utf8(&buffer_lock[..position]).unwrap_or(""); // slice up the position and convert to string
                         
                             // Handle the command
-                            handle_command(command);
+                            run_command(command);
                         
                             // Clear the buffer and reset the position
                             *buffer_lock = [0; INPUT_BUFFER_SIZE];

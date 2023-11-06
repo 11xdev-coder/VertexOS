@@ -1,8 +1,9 @@
 use volatile::Volatile;
 use lazy_static::lazy_static;
-use core::fmt;
+use core::{fmt, panic::PanicInfo};
 use spin::Mutex;
 use x86_64::instructions::port::Port;
+use alloc::format;
 
 #[allow(dead_code)] // disabling warnings when compiler sees unused code
 #[derive(Debug, Clone, Copy, PartialEq, Eq)] // enabling copy semantics
@@ -31,12 +32,27 @@ const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(transparent)] // ensure that ColorCode has the exact same memory layout as u8
-struct ColorCode(u8); // full color byte
+struct ColorCode {
+    foreground: Color,
+    background: Color,
+}
 
 impl ColorCode {
     fn new(foreground: Color, background: Color) -> ColorCode {
-        ColorCode((background as u8) << 4 | (foreground as u8))
+        ColorCode { foreground, background }
+    }
+
+    pub fn get_foreground(&self) -> Color {
+        self.foreground
+    }
+
+    pub fn get_background(&self) -> Color {
+        self.background
+    }
+
+    // You'll need this to convert the ColorCode to a u8 for the VGA buffer
+    pub fn to_u8(&self) -> u8 {
+        (self.background as u8) << 4 | (self.foreground as u8)
     }
 }
 
@@ -44,7 +60,7 @@ impl ColorCode {
 #[repr(C)]
 struct ScreenChar {
     ascii_character: u8,
-    color_code: ColorCode,
+    color_code: u8,
 }
 
 #[repr(transparent)] // ensure that Buffer has the same memory layout as its single field.
@@ -107,7 +123,7 @@ impl Writer {
                 let row = BUFFER_HEIGHT - 1;
                 let col = self.column_position;
 
-                let color_code = self.color_code;
+                let color_code = self.color_code.to_u8();
                 self.buffer.chars[row][col].write(ScreenChar {
                     ascii_character: byte,
                     color_code,
@@ -135,30 +151,47 @@ impl Writer {
         }
     }
 
-    // Writes a byte at a specific position without altering the cursor
+    // Writes a byte at a specific position without altering the cursor or column position
     pub fn write_byte_at(&mut self, byte: u8, column: usize, row: usize) {
-        if column < BUFFER_WIDTH && row < BUFFER_HEIGHT {
-            let color_code = self.color_code;
-            self.buffer.chars[row][column].write(ScreenChar {
-                ascii_character: byte,
-                color_code,
-            });
-        }
+        let color_code = self.color_code.to_u8();
+        self.buffer.chars[row][column].write(ScreenChar {
+            ascii_character: byte,
+            color_code,
+        });
     }
 
-    // Writes a string at a specific position without altering the cursor
-    pub fn write_string_at(&mut self, s: &str, column: usize, mut row: usize) {
-        for (i, byte) in s.bytes().enumerate() {
+    pub fn write_string_at(&mut self, s: &str, initial_column: usize, mut row: usize) {
+        let mut current_column = initial_column;
+        
+        for byte in s.bytes() {
             match byte {
                 // printable ASCII byte or newline
-                0x20..=0x7e => self.write_byte_at(byte, column + i, row),
+                0x20..=0x7e => {
+                    if current_column >= BUFFER_WIDTH {
+                        row += 1;
+                        current_column = initial_column;
+                    }
+                    self.write_byte_at(byte, current_column, row);
+                    current_column += 1;
+                },
                 // newline
-                b'\n' => row += 1,
+                b'\n' => {
+                    row += 1;
+                    current_column = initial_column; // Reset column to initial position
+                },
                 // not part of printable ASCII range
-                _ => self.write_byte_at(0xfe, column + i, row),
+                _ => {
+                    if current_column >= BUFFER_WIDTH {
+                        row += 1;
+                        current_column = initial_column;
+                    }
+                    self.write_byte_at(0xfe, current_column, row);
+                    current_column += 1;
+                },
             }
         }
     }
+   
 
     /// Shifts all lines one line up and clears the last row.
     fn new_line(&mut self) {
@@ -178,7 +211,7 @@ impl Writer {
     fn clear_row(&mut self, row: usize) {
         let blank = ScreenChar {
             ascii_character: b' ',
-            color_code: self.color_code,
+            color_code: self.color_code.to_u8(),
         };
         for col in 0..BUFFER_WIDTH {
             self.buffer.chars[row][col].write(blank);
@@ -255,10 +288,52 @@ impl Writer {
         self.color_code = color_code;
     }
 
-    pub fn return_to_default_color(&mut self) {
-        let mut writer = WRITER.lock();
-        writer.set_color(ColorCode::new(Color::White, Color::Black));
+    pub fn set_screen_color(&mut self, background_color: Color) {
+        for row in 0..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                let color_code = ColorCode::new(self.color_code.get_foreground(), background_color).to_u8();
+                self.buffer.chars[row][col].write(ScreenChar {
+                    ascii_character: b' ',
+                    color_code,
+                });
+            }
+        }
+        self.column_position = 0;
+        self.update_cursor();
     }
+
+    pub fn reset_color(&mut self) {
+        self.set_color(ColorCode::new(Color::White, Color::Black));
+    }
+
+    // BSOD ------------------------------------------------------------------------------
+    pub fn bsod_title(&mut self) {
+        // Calculate the position to center the "VertexDOS panicked" message
+        let message = "VertexDOS panicked";
+        let row = BUFFER_HEIGHT / 3; // Slightly more to the top
+        let column = (BUFFER_WIDTH - message.len()) / 2; // Centered
+    
+        // Set the color for the text
+        self.set_color(ColorCode::new(Color::Blue, Color::White));
+    
+        // Write the message at the calculated position
+        self.write_string_at(message, column, row);
+    }    
+    
+    pub fn bsod_panic_message(&mut self, info: &PanicInfo) {
+        // Calculate the position to center the "VertexDOS panicked" message
+        let message = format!("{}", info);
+        let row = BUFFER_HEIGHT / 2; 
+        let column = (BUFFER_WIDTH - message.len()) / 2; // Centered
+    
+        // Set the color for the text
+        self.set_color(ColorCode::new(Color::White, Color::Blue));
+    
+        // Write the message at the calculated position
+        self.write_string_at(&message, column, row);
+        self.reset_color();
+    }  
+    // --------------------------------------------------------------------------------------------------
     
 }
 
@@ -269,40 +344,3 @@ impl fmt::Write for Writer {
         Ok(())
     }
 }
-
-pub fn set_screen_color(background_color: Color) {
-    let mut writer = WRITER.lock();
-    for row in 0..BUFFER_HEIGHT {
-        for col in 0..BUFFER_WIDTH {
-            let color_code = ColorCode::new(Color::White, background_color);
-            writer.buffer.chars[row][col].write(ScreenChar {
-                ascii_character: b' ',
-                color_code,
-            });
-        }
-    }
-    writer.set_color(ColorCode::new(Color::White, background_color));
-    writer.column_position = 0;
-    writer.update_cursor();
-}
-
-pub fn print_bsod_message() {
-    let mut writer = WRITER.lock();
-
-    // Clear the screen first
-    for row in 0..BUFFER_HEIGHT {
-        writer.clear_row(row);
-    }
-
-    // Calculate the position to center the "System error" message
-    let message = "System error";
-    let row = BUFFER_HEIGHT / 3; // Slightly more to the top
-    let column = (BUFFER_WIDTH - message.len()) / 2; // Centered
-
-    // Ensure the message is within the bounds of the screen
-    if column < BUFFER_WIDTH && row < BUFFER_HEIGHT {
-        // Write the message at the calculated position
-        writer.write_string_at(message, column, row);
-    }
-}
-

@@ -9,11 +9,14 @@ mod vga_buffer;
 extern crate alloc;
 use core::panic::PanicInfo;
 use bootloader::{BootInfo, entry_point};
+use kernel::command_registry;
+
 use kernel::vga_buffer::WRITER;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use kernel::{allocator::HEAP_SIZE, test_registry};
 use kernel::task::{Task, keyboard, executor::Executor};
+use kernel::commands::{bsod::{handle_bsod, self}, fart, echo, test};
 
 
 // b"string" means to convert the string into bytes
@@ -70,14 +73,18 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     test_registry::register_test("simple_println", println_simple);
     test_registry::register_test("many_println", println_many);
 
+    // registering commands
+    command_registry::register_command("bsod", bsod::execute);
+    command_registry::register_command("fart", fart::execute);
+    command_registry::register_command_with_args("echo", echo::execute);
+    command_registry::register_command_with_args("test", test::execute);
+
     println!("Checking state... [ok]");
     print!("> ");
 
     let mut executor = Executor::new();
     executor.spawn(Task::new(keyboard::print_keypress()));
     executor.run();
-
-    kernel::hlt_loop();
 }
 
 // PanicInfo has the file and line where panic happened
@@ -86,8 +93,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
-    kernel::hlt_loop();
+    handle_bsod(info);
+    kernel::hlt_loop()
 }
 
 #[cfg(test)]

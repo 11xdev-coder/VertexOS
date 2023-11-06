@@ -1,10 +1,8 @@
-use crate::{gdt, print, println, hlt_loop};
-use crate::vga_buffer::WRITER;
+use crate::{gdt, println, hlt_loop};
 
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin;
-use spin::Mutex;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 pub const PIC_1_OFFSET: u8 = 32;

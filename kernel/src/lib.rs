@@ -13,11 +13,12 @@ pub mod allocator;
 pub mod gdt;
 pub mod interrupts;
 pub mod vga_buffer;
-pub mod commands;
+pub mod command_registry;
 pub mod sound;
 pub mod memory;
 pub mod test_registry;
 pub mod task;
+pub mod commands;
 
 // lib.rs mostly consists of implementing tests using cargo test, since I implemened test_registry.rs, this lib.rs is used only for initializing GDT and Interrupts
 
@@ -30,6 +31,7 @@ pub fn init() {
 
 #[cfg(test)]
 use bootloader:: {BootInfo, entry_point};
+use commands::bsod::handle_bsod;
 
 #[cfg(test)]
 entry_point!(test_kernel_main);
@@ -42,8 +44,7 @@ fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
 }
 
 pub fn test_panic_handler(info: &PanicInfo) -> ! {
-    println!("[failed]\n");
-    println!("Error: {}\n", info);
+    handle_bsod(info);
     hlt_loop();
 }
 
