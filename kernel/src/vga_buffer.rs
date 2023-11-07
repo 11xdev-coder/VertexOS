@@ -160,38 +160,32 @@ impl Writer {
         });
     }
 
-    pub fn write_string_at(&mut self, s: &str, initial_column: usize, mut row: usize) {
-        let mut current_column = initial_column;
-        
+    pub fn write_string_at(&mut self, s: &str, mut column: usize, mut row: usize) {
         for byte in s.bytes() {
-            match byte {
-                // printable ASCII byte or newline
-                0x20..=0x7e => {
-                    if current_column >= BUFFER_WIDTH {
-                        row += 1;
-                        current_column = initial_column;
-                    }
-                    self.write_byte_at(byte, current_column, row);
-                    current_column += 1;
-                },
-                // newline
-                b'\n' => {
-                    row += 1;
-                    current_column = initial_column; // Reset column to initial position
-                },
-                // not part of printable ASCII range
-                _ => {
-                    if current_column >= BUFFER_WIDTH {
-                        row += 1;
-                        current_column = initial_column;
-                    }
-                    self.write_byte_at(0xfe, current_column, row);
-                    current_column += 1;
-                },
+            if byte == b'\n' {
+                // If newline, move to the next line and reset column
+                row += 1;
+                column = 0;
+                continue;
             }
+    
+            if column >= BUFFER_WIDTH {
+                // If end of line, move to the next line
+                row += 1;
+                column = 0;
+            }
+    
+            if row >= BUFFER_HEIGHT {
+                // Scroll up the text to make room for more text
+                self.new_line();
+                row = BUFFER_HEIGHT - 1; // Set row to the last line after scrolling
+            }
+    
+            // Write the byte and increment the column
+            self.write_byte_at(byte, column, row);
+            column += 1;
         }
-    }
-   
+    }        
 
     /// Shifts all lines one line up and clears the last row.
     fn new_line(&mut self) {
@@ -321,18 +315,14 @@ impl Writer {
     }    
     
     pub fn bsod_panic_message(&mut self, info: &PanicInfo) {
-        // Calculate the position to center the "VertexDOS panicked" message
         let message = format!("{}", info);
-        let row = BUFFER_HEIGHT / 2; 
-        let column = (BUFFER_WIDTH - message.len()) / 2; // Centered
-    
-        // Set the color for the text
+        let row = BUFFER_HEIGHT / 2; // Start in the middle of the screen
+        let column = (BUFFER_WIDTH - message.len()) / 3;
+
         self.set_color(ColorCode::new(Color::White, Color::Blue));
-    
-        // Write the message at the calculated position
+
         self.write_string_at(&message, column, row);
-        self.reset_color();
-    }  
+    }
     // --------------------------------------------------------------------------------------------------
     
 }

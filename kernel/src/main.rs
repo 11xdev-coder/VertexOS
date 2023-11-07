@@ -16,7 +16,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use kernel::{allocator::HEAP_SIZE, test_registry};
 use kernel::task::{Task, keyboard, executor::Executor};
-use kernel::commands::{bsod::{handle_bsod, self}, fart, echo, test};
+use kernel::commands::{bsod::{handle_bsod, self}, fart, echo, test, assert_eq};
 
 
 // b"string" means to convert the string into bytes
@@ -78,6 +78,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     command_registry::register_command("fart", fart::execute);
     command_registry::register_command_with_args("echo", echo::execute);
     command_registry::register_command_with_args("test", test::execute);
+    command_registry::register_command_with_args("assert_eq", assert_eq::execute);
 
     println!("Checking state... [ok]");
     print!("> ");
